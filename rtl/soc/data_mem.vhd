@@ -36,18 +36,18 @@
 --                   2    ->    1    ->    2
 --                   3    ->    2    ->    3
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity data_mem is
   port (
-    clk     : in std_logic;
-    addr    : in std_logic_vector(31 downto 0);
-    dtype   : in std_logic_vector(2 downto 0);
-    din     : in std_logic_vector(31 downto 0);
-    wen     : in std_logic;
-    dout    : out std_logic_vector(31 downto 0)
+    clk         : in  std_logic;
+    dmem_addr   : in  std_logic_vector(31 downto 0);
+    dmem_dtype  : in  std_logic_vector(2 downto 0);
+    dmem_wd     : in  std_logic_vector(31 downto 0);
+    dmem_we     : in  std_logic;
+    dmem_do     : out std_logic_vector(31 downto 0)
   );
 end data_mem;
 

@@ -1,5 +1,7 @@
 # Softcore RISC V CPU
 
-A single cycle implementation of the rv32i ISA created with VHDL
+Overview
+--------
 
-Built for the Basys 3 board
+A single cycle (/multicyce for loads) implementation of the rv32i ISA created
+with VHDL

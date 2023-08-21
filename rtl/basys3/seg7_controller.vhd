@@ -1,12 +1,14 @@
 --  
---  seg7_controller.vhd
---  
---  Displays 32 bit number in hex on 4 digit 7-segment display
+--  File:   seg7_controller.vhd
+--  Brief:  Displays 16-bit number in hex on 4 digit 7-segment display.
+--
+--  Copyright (C) 2023 Nick Chan
+--  See the LICENSE file at the root of the project for licensing info.
 --  
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity seg7_controller is
   port (
@@ -40,7 +42,7 @@ begin
 
   dig_sel_gen : process(div_clk)
   begin
-    if(rising_edge(div_clk)) then
+    if rising_edge(div_clk) then
       dig_sel <= dig_sel + 1;
       if(dig_sel = "11") then
         dig_sel <= "00";
@@ -59,7 +61,6 @@ begin
                 di(7 downto 4) when "01",
                 di(11 downto 8) when "10",
                 di(15 downto 12) when others;
-
     
   decode : entity work.hex_seg7_decoder(arch)
     port map (
@@ -67,5 +68,4 @@ begin
       seg7 => digit
     );
     
-
 end arch;

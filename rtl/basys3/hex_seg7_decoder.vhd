@@ -1,9 +1,13 @@
 --  
---  hex_seg7_decoder.vhd
+--  File:   hex_seg7_decoder.vhd
+--  Brief:  Hex to 7-segment decoder.
+--
+--  Copyright (C) 2023 Nick Chan
+--  See the LICENSE file at the root of the project for licensing info.
 --  
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
 
 entity hex_seg7_decoder is
   port (
