@@ -31,25 +31,20 @@ end uart;
 
 architecture arch of uart is
 
-  -- Receiver samples at 16 times the baud rate
-  -- Assumes clock speed is 100 MHz
-  constant sample_clk_ticks         : integer := 3125000 / UART_BAUD_RATE; -- TODO remove this
-  constant TICKS_IN_FULL_BAUD_CYCLE : integer := CLK_FREQ_HZ / UART_BAUD_RATE; -- TODO
-  constant TICKS_IN_HALF_BAUD_CYCLE : integer := CLK_FREQ_HZ / 2 / UART_BAUD_RATE; -- TODO
+  constant TICKS_IN_FULL_BAUD_CYCLE : integer := CLK_FREQ_HZ / UART_BAUD_RATE;
+  constant TICKS_IN_HALF_BAUD_CYCLE : integer := CLK_FREQ_HZ / 2 / UART_BAUD_RATE;
   
   type uart_state_t is (idle, start, data, stop);
   signal rx_state         : uart_state_t := idle;
   signal tx_state         : uart_state_t := idle;
-  
-  signal sample_clk       : std_logic := '0';
-  
-  signal received_byte    : std_logic_vector(7 downto 0) := (others => '0');
-  signal pending_rx_data  : std_logic_vector(7 downto 0) := (others => '0');
+    
+  signal received_byte    : std_logic_vector(7 downto 0)  := (others => '0');
+  signal pending_rx_data  : std_logic_vector(7 downto 0)  := (others => '0');
   signal pending_rx_ready : std_logic := '0';
   signal pending_rx_cmp   : std_logic := '1';
   signal rx_ready         : std_logic := '0';
   signal reading_rx       : std_logic;
-  signal rx_data          : std_logic_vector(7 downto 0) := (others => '0');
+  signal rx_data          : std_logic_vector(7 downto 0)  := (others => '0');
   
   signal tx_busy          : std_logic := '0';
   signal tx_data          : std_logic_vector(7 downto 0)  := (others => '0');
@@ -59,22 +54,8 @@ architecture arch of uart is
 
 begin
   
-  -- generates the clock for sampling the input
-  sample_clk_gen : process(clk)
-    variable tickcounter: integer range 0 to sample_clk_ticks - 1 := 0;
-  begin
-    if rising_edge(clk) then
-      if tickcounter = sample_clk_ticks - 1 then
-        sample_clk <= not sample_clk;
-        tickcounter := 0;
-      else
-        tickcounter := tickcounter + 1;
-      end if;
-    end if;
-  end process;
-  
   uart_receiver : process(clk)
-    variable clktickcounter : integer range 0 to TICKS_IN_FULL_BAUD_CYCLE - 1 := 0; -- counts the ticks for sampling the next byte
+    variable clk_ticks : integer range 0 to TICKS_IN_FULL_BAUD_CYCLE - 1 := 0; -- counts the ticks for sampling the next byte
     variable bitcounter     : integer range 0 to 7  := 0; -- counts which bit is being received
   begin
     if rising_edge(clk) then
@@ -83,7 +64,7 @@ begin
         when idle =>
           
           received_byte <= (others => '0');
-          clktickcounter := 0;
+          clk_ticks := 0;
           bitcounter := 0;
           
           if uart_rx_pin = '0' then
@@ -94,11 +75,11 @@ begin
         when start =>
           
           if uart_rx_pin = '0' then -- Ensure that the rx pin is still low
-            if clktickcounter = TICKS_IN_HALF_BAUD_CYCLE - 1 then -- wait half the baud rate so the data can be sampled in the middle of each bit
+            if clk_ticks = TICKS_IN_HALF_BAUD_CYCLE - 1 then -- wait half the baud rate so the data can be sampled in the middle of each bit
               rx_state <= data;              
-              clktickcounter := 0;
+              clk_ticks := 0;
             else
-              clktickcounter := clktickcounter + 1;
+              clk_ticks := clk_ticks + 1;
             end if;
           else
             rx_state <= idle;
@@ -106,28 +87,28 @@ begin
           
         when data =>
           
-          if clktickcounter = TICKS_IN_FULL_BAUD_CYCLE - 1 then
+          if clk_ticks = TICKS_IN_FULL_BAUD_CYCLE - 1 then
             received_byte(bitcounter) <= uart_rx_pin;
-            clktickcounter := 0;
+            clk_ticks := 0;
             if bitcounter = 7 then
               -- All bits of the byte have been received
               rx_state <= stop;
-              clktickcounter := 0;
+              clk_ticks := 0;
             else
               bitcounter := bitcounter + 1;
             end if;
           else
-            clktickcounter := clktickcounter + 1;
+            clk_ticks := clk_ticks + 1;
           end if;
           
         when stop =>
           
-          if clktickcounter = TICKS_IN_FULL_BAUD_CYCLE - 1 then -- wait for 1 baud rate cycle
+          if clk_ticks = TICKS_IN_FULL_BAUD_CYCLE - 1 then -- wait for 1 baud rate cycle
             pending_rx_data   <= received_byte;
             pending_rx_ready  <= pending_rx_ready XOR '1';
             rx_state          <= idle;
           else
-            clktickcounter := clktickcounter + 1;
+            clk_ticks := clk_ticks + 1;
           end if;
           
         when others =>

@@ -69,7 +69,7 @@ begin
       dbg_ctrl_sigs   => dbg_ctrl_sigs
     );
   
-  -- 1Hz Clock divider
+  -- 1MHz Clock divider
   clk_div_1hz: process (clk)
     variable counter : integer range 0 to 100000000 := 0;
   begin
