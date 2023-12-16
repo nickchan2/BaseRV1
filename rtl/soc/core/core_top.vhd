@@ -9,7 +9,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.core_package.all;
+use work.soc_package.all;
 
 entity core_top is
   port (
@@ -45,11 +45,11 @@ architecture arch of core_top is
 
   signal imm          : word_t;     -- Immediate value
 
-  signal ctrl_bus     : ctrl_bus_t;
+  signal ctrl_bus     : ctrl_bus_t; -- Control signal bus
 
-  signal pc_val       : word_t  := X"10000000";
-  signal pc_wd        : word_t;     -- Program counter write data
-  signal next_seq_pc  : word_t;     -- Next sequential pc
+  signal pc_val       : word_t  := BOOT_ROM_BASE;
+  signal next_pc      : word_t;   -- Next PC
+  signal next_seq_pc  : word_t;     -- Next sequential PC
   
   signal branch_en    : std_logic;  -- Branch enable
   
@@ -67,9 +67,9 @@ begin
   process (clk, rst_n)
   begin
     if rst_n = '0' then
-      pc_val <= x"10000000";
+      pc_val <= BOOT_ROM_BASE;
     elsif rising_edge(clk) AND ctrl_bus.pc_we = '1' then
-      pc_val <= pc_wd;
+      pc_val <= next_pc;
     end if;
   end process;
 
@@ -124,7 +124,7 @@ begin
     );
   
   -- Program counter write data source mux
-  pc_wd <= next_seq_pc when (branch_en = '0') else alu_result;
+  next_pc <= next_seq_pc when (branch_en = '0') else alu_result;
 
   -- ALU operand 1 source mux
   with ctrl_bus.alu_operand1_sel select alu_operand1 <=
@@ -147,7 +147,8 @@ begin
   dmem_wd     <= rs2_val;
   dmem_we     <= ctrl_bus.dmem_we;
 
-  imem_addr <= pc_val;
+  -- Memory reads are synchronous
+  imem_addr <= next_pc when (ctrl_bus.pc_we = '1') else pc_val;
 
   -- Debug
   dbg_curr_instr  <= instr;

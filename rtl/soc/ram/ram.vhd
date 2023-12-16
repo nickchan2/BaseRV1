@@ -9,6 +9,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.soc_package.all;
 
 entity ram is
   generic (
@@ -20,13 +21,13 @@ entity ram is
     -- Port 1: Read/Write
     ram_port1_addr  : in  std_logic_vector((RAM_ADDR_BITS - 1) downto 0);
     ram_port1_dtype : in  std_logic_vector(2 downto 0);
-    ram_port1_wd    : in  std_logic_vector(31 downto 0);
+    ram_port1_wd    : in  word_t;
     ram_port1_we    : in  std_logic;
-    ram_port1_do    : out std_logic_vector(31 downto 0);
+    ram_port1_do    : out word_t;
 
     -- Port 2: Read only
     ram_port2_addr  : in  std_logic_vector((RAM_ADDR_BITS - 1) downto 0); -- Bottom 2 bits not used
-    ram_port2_do    : out std_logic_vector(31 downto 0)
+    ram_port2_do    : out word_t
   );
 end ram;
 
@@ -48,19 +49,18 @@ architecture arch of ram is
   end component bram_8bit;
 
   type byte_array_t is array(0 to 3) of std_logic_vector(7 downto 0);
-  type bram_addr_array_t is array(0 to 3) of std_logic_vector((RAM_ADDR_BITS - 3) downto 0);
   type bram_we_array_t is array(0 to 3) of std_logic;
 
-  signal bram_port1_addr  : bram_addr_array_t;
+  signal bram_port1_addr  : std_logic_vector((RAM_ADDR_BITS - 3) downto 0);
   signal bram_port1_we    : bram_we_array_t;
   signal bram_port1_wd    : byte_array_t;
   signal bram_port1_do    : byte_array_t;
   signal bram_port2_addr  : bram_addr_array_t;
   signal bram_port2_do    : byte_array_t;
 
-  signal width_is_w       : std_logic;
-  signal width_is_hw      : std_logic;
-  signal width_is_b       : std_logic;
+  signal width_is_w       : std_logic;  -- Width is word
+  signal width_is_hw      : std_logic;  -- Width is halfword
+  signal width_is_b       : std_logic;  -- Width is byte
 
   signal addr_byte_3      : std_logic;
   signal addr_byte_2      : std_logic;
@@ -77,15 +77,13 @@ begin
       )
       port map (
         clk             => clk,
-        bram_port1_addr => bram_port1_addr(ii),
+        bram_port1_addr => bram_port1_addr,
         bram_port1_we   => bram_port1_we(ii),
         bram_port1_wd   => bram_port1_wd(ii),
         bram_port1_do   => bram_port1_do(ii),
         bram_port2_addr => bram_port2_addr(ii),
         bram_port2_do   => bram_port2_do(ii)
       );
-
-      bram_port1_addr(ii) <= ram_port1_addr((RAM_ADDR_BITS - 1) downto 2);
       
       bram_port1_wd(ii) <= ram_port1_wd((7 + (8 * ii)) downto (8 * ii));
       
@@ -94,6 +92,8 @@ begin
       ram_port2_do((7 + (8 * ii)) downto (8 * ii)) <= bram_port2_do(ii);
 
   end generate;
+
+  bram_port1_addr <= ram_port1_addr((RAM_ADDR_BITS - 1) downto 2);
 
   width_is_w  <= '1' when (dtype(1 downto 0) = "10") else '0';
   width_is_hw <= '1' when (dtype(1 downto 0) = "01") else '0';

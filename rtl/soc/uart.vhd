@@ -55,8 +55,8 @@ architecture arch of uart is
 begin
   
   uart_receiver : process(clk)
-    variable clk_ticks : integer range 0 to TICKS_IN_FULL_BAUD_CYCLE - 1 := 0; -- counts the ticks for sampling the next byte
-    variable bitcounter     : integer range 0 to 7  := 0; -- counts which bit is being received
+    variable clk_ticks  : integer range 0 to TICKS_IN_FULL_BAUD_CYCLE - 1 := 0; -- counts the ticks for sampling the next byte
+    variable bitcounter : integer range 0 to 7  := 0; -- counts which bit is being received
   begin
     if rising_edge(clk) then
       case rx_state is
@@ -190,12 +190,6 @@ begin
     end if;
   end process uart_transmitter;
 
-  with uart_addr select uart_do_wd <=
-    rx_data               when "00",
-    "0000000" & rx_ready  when "01",
-    "0000000" & tx_busy   when "11",
-    x"00"                 when others;
-
   process(clk)
   begin
     if rising_edge(clk) then
@@ -208,6 +202,12 @@ begin
       end if;
     end if;
   end process;
+
+  with uart_addr select uart_do_wd <=
+    rx_data               when "00",
+    "0000000" & rx_ready  when "01",
+    "0000000" & tx_busy   when "11",
+    x"00"                 when others;
 
   process(clk)
   begin

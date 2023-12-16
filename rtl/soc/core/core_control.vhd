@@ -10,7 +10,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use work.core_package.all;
+use work.soc_package.all;
 
 entity core_control is
   port (

@@ -9,6 +9,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.soc_package.all;
 
 entity mem_controller is
   generic (
@@ -17,31 +18,31 @@ entity mem_controller is
   port (
     -- Data memory
     dmem_en         : in  std_logic;
-    dmem_addr       : in  std_logic_vector(31 downto 0);
+    dmem_addr       : in  word_t;
     dmem_dtype      : in  std_logic_vector(2 downto 0);
-    dmem_wd         : in  std_logic_vector(31 downto 0);
+    dmem_wd         : in  word_t;
     dmem_we         : in  std_logic;
-    dmem_do         : out std_logic_vector(31 downto 0);
+    dmem_do         : out word_t;
 
     -- Instruction memory
-    imem_addr       : in  std_logic_vector(31 downto 0);
-    imem_do         : out std_logic_vector(31 downto 0);
+    imem_addr       : in  word_t;
+    imem_do         : out word_t;
 
     -- RAM
     ram_port1_addr  : out std_logic_vector((RAM_ADDR_BITS - 1) downto 0);
     ram_port1_dtype : out std_logic_vector(2 downto 0);
-    ram_port1_wd    : out std_logic_vector(31 downto 0);
+    ram_port1_wd    : out word_t;
     ram_port1_we    : out std_logic;
-    ram_port1_do    : in  std_logic_vector(31 downto 0);
+    ram_port1_do    : in  word_t;
     ram_port2_addr  : out std_logic_vector((RAM_ADDR_BITS - 1) downto 0);
-    ram_port2_do    : in  std_logic_vector(31 downto 0);
+    ram_port2_do    : in  word_t;
     
     -- Boot ROM
     boot_rom_addr   : out std_logic_vector(4 downto 0);
-    boot_rom_do     : in  std_logic_vector(31 downto 0);
+    boot_rom_do     : in  word_t;
 
     -- Timer
-    timer_val       : in  std_logic_vector(31 downto 0);
+    timer_val       : in  word_t;
 
     -- UART
     uart_addr       : out std_logic_vector(1 downto 0);
@@ -100,7 +101,7 @@ begin
 
   ---------- Instruction memory ----------
 
-  process (imem_addr)
+  process(imem_addr)
   begin
     if unsigned(imem_addr(31 downto RAM_ADDR_BITS)) = 0 then
       imem_is_ram_access <= '1';
@@ -119,8 +120,8 @@ begin
   imem_invalid_access <= imem_misaligned_access OR imem_invalid_address;
 
   with imem_addr(31 downto 28) select imem_do <=
-    ram_port2_do    when X"0",
-    boot_rom_do     when X"1",
+    ram_port2_do    when x"0",
+    boot_rom_do     when x"1",
     (others => '0') when others;
 
   ---------- Memory peripheral output signals ----------

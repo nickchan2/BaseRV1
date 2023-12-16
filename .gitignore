@@ -1,3 +1,6 @@
 .DS_Store
 .vscode
-Software
+emulator/build
+emulator/BaseRV1E
+emulator/rv_log.txt
+testing/

@@ -9,7 +9,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.core_package.all;
+use work.soc_package.all;
 
 entity core_alu is
   port (
@@ -22,14 +22,14 @@ end core_alu;
 
 architecture arch of core_alu is 
   
-  signal shft_do        : word_t;
+  signal shft_do        : word_t;     -- Shifter data out
   
   signal op1_plus_op2   : word_t;
   signal op1_minus_op2  : word_t;
 
-  signal op1_eq_op2     : std_logic;
-  signal op1_lt_op2     : std_logic;
-  signal op1_ltu_op2    : std_logic;
+  signal op1_eq_op2     : std_logic;  -- Operand 1 equals operand 2
+  signal op1_lt_op2     : std_logic;  -- Operand 1 is less than operand 2 (signed comparison)
+  signal op1_ltu_op2    : std_logic;  -- Operand 1 is less than operand 2 (unsigned comparison)
   
 begin
   
@@ -42,29 +42,28 @@ begin
       shft_do       => shft_do
     );
 
-    op1_plus_op2 <= std_logic_vector(unsigned(alu_operand1) + unsigned(alu_operand2));
+    op1_plus_op2 <= word_t(unsigned(alu_operand1) + unsigned(alu_operand2));
 
-    op1_minus_op2 <= std_logic_vector(unsigned(alu_operand1) - unsigned(alu_operand2));
+    op1_minus_op2 <= word_t(unsigned(alu_operand1) - unsigned(alu_operand2));
   
-  -- When the subtraction of the nums is 0, they are equal (signed or unsigned)
+  -- When the subtraction of the operands is 0, they are equal
   op1_eq_op2 <= '1' when (op1_minus_op2 = x"00000000") else '0';
 
-  -- alu_operand1 less than alu_operand2 signed comparison
-  -- alu_operand1 is less than alu_operand2 when:
-  --    - The MSB of alu_operand1 is '1' AND the MSB of alu_operand2 is '0'
-  --      (meaning that alu_operand1 is negative AND alu_operand2 is
-  --      non-negative) OR
-  --    - The MSBs of alu_operand1 alu_operand2 are the same AND the MSB of
-  --      alu_operand1-alu_operand2 is '1' (meaning that the result of their
+  -- Signed comparison:
+  -- operand1 is less than operand2 when:
+  --    - The MSB of operand1 is '1' AND the MSB of operand2 is '0' (meaning
+  --      operand1 is negative AND operand2 is non-negative) OR
+  --    - The MSBs of operand1 and operand2 are the same AND the MSB of
+  --      operand1 minus operand2 is '1' (meaning that the result of their
   --      subtraction is negative)
   op1_lt_op2 <= (alu_operand1(31) AND (NOT alu_operand2(31))) OR
                 ((alu_operand1(31) XNOR alu_operand2(31)) AND op1_minus_op2(31));
   
-  -- alu_operand1 less than alu_operand2 unsigned comparison
-  -- alu_operand1 is less than alu_operand2 when:
-  --   - The MSB of alu_operand1 and alu_operand2 are the same AND the MSB of
-  --     alu_operand1-alu_operand2 is '1' OR
-  --   - The MSB of alu_operand1 is '0' AND the MSB of alu_operand2 is '1'
+  -- Unsigned comparison:
+  -- operand1 is less than operand2 when:
+  --   - The MSB of operand1 and operand2 are the same AND the MSB of operand1
+  --     minus operand2 is '1' OR
+  --   - The MSB of operand1 is '0' AND the MSB of operand2 is '1'
   op1_ltu_op2 <=  ((alu_operand1(31) XNOR alu_operand2(31)) AND op1_minus_op2(31)) OR
                   ((not alu_operand1(31) AND alu_operand2(31)));
   

@@ -1,13 +1,22 @@
+/**
+ * @file    BaseRV1E.c
+ * @brief   Source file for the emulator
+ * 
+ * @copyright (C) 2023 Nick Chan
+ * See the LICENSE file at the root of the project for licensing info.
+*/
+
 /* ----------------------------------------------------------------------------
- * Includes
+ * Private Includes
  * ------------------------------------------------------------------------- */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 
-#include "emulator.h"
-#include "logging.h"
+#include "BaseRV1E.h"
 #include "uart.h"
 
 /* ----------------------------------------------------------------------------
@@ -37,6 +46,13 @@
  * Private Macros
  * ------------------------------------------------------------------------- */
 
+#define rv_Log(...) do { \
+    FILE *fd = fopen("rv_log.txt", "a"); \
+    fseek(fd, 0, SEEK_END); \
+    fprintf(logfile, __VA_ARGS__); \
+    fclose(fd); \
+} while (0);
+
 #define STORE_MISALIGNED(addr, funct3) \
     ( (((funct3) == ) && ((addr) & 0b1)) || \
       (((funct3) == DT_WORD) && ((addr) & 0b11)) )
@@ -57,24 +73,24 @@
 #define SPECIAL_OP(i)           ((i) & 0x40000000)
 
 /* Immediate value for I-type instructions */
-#define IMMEDIATE_I(i)  ((word_t)( (int32_t)(i) >> 20U ))
+#define IMMEDIATE_I(i)  ((word_t)( (int32_t)(i) >> 20 ))
 
 /* Immediate value for S-type instructions */
-#define IMMEDIATE_S(i)  ((word_t)( (((int32_t)(i) >> 20U) & ~0b11111) | \
-                                   (((i) >> 7U) & 0b11111) ))
+#define IMMEDIATE_S(i)  ((word_t)( (((int32_t)(i) >> 20) & ~0b11111) | \
+                                   (((i) >> 7) & 0b11111) ))
 
 /* Immediate value for B-type instructions */
-#define IMMEDIATE_B(i)  ((word_t)( (((int32_t)(i) >> 20U) & ~0b100000011111) | \
-                                   (((i) << 4U) & 0x800) | \
-                                   (((i) >> 7U) & 0b11110) ))
+#define IMMEDIATE_B(i)  ((word_t)( (((int32_t)(i) >> 20) & ~0b100000011111) | \
+                                   (((i) << 4) & 0x800) | \
+                                   (((i) >> 7) & 0b11110) ))
 
 /* Immediate value for U-type instructions */
 #define IMMEDIATE_U(i)  ((word_t)( (i) & 0xFFFFF000 ))
 
 /* Immediate value for J-type instructions */
-#define IMMEDIATE_J(i)  ((word_t)( (((int32_t)(i) >> 20U) & 0xFFF007FE) | \
+#define IMMEDIATE_J(i)  ((word_t)( (((int32_t)(i) >> 20) & 0xFFF007FE) | \
                                    ((i) & 0xFF000) | \
-                                   (((i) >> 9U) & 0x800) ))
+                                   (((i) >> 9) & 0x800) ))
 
 /* ----------------------------------------------------------------------------
  * Private Types
@@ -145,6 +161,8 @@ typedef uint32_t reg_sel_t;
 
 static void rv_MainLoop(void);
 
+static void rv_LoadProgram(const char *fn);
+
 static rv_exception_t rv_DecodeAndExecute(void);
 
 static rv_exception_t rv_Fetch(word_t addr);
@@ -166,12 +184,13 @@ static word_t pc;
 static uint32_t instruction;
 static uint8_t *memory;
 static word_t loaded;
+static FILE *logfile;
 
 static const uint32_t boot_rom[16] = {
-    0x300005b7U, 0x00000613U, 0x028000efU, 0x00050293U,
-    0x020000efU, 0x00851513U, 0x00a282b3U, 0x014000efU,
-    0x00a60023U, 0x00160613U, 0xfe561ae3U, 0x00000067U,
-    0x0015c503U, 0xfe050ee3U, 0x0005c503U, 0x00008067U
+    0x300005b7, 0x00000613, 0x028000ef, 0x00050293,
+    0x020000ef, 0x00851513, 0x00a282b3, 0x014000ef,
+    0x00a60023, 0x00160613, 0xfe561ae3, 0x00000067,
+    0x0015c503, 0xfe050ee3, 0x0005c503, 0x00008067
 };
 
 static uint64_t inst_cnt;
@@ -203,6 +222,25 @@ static void rv_MainLoop(void) {
     }
 }
 
+static void rv_LoadProgram(const char *fn) {
+    if (fn == NULL) {
+        fn = "program.txt";
+    }
+
+    FILE *fd = fopen(fn, "rb");
+    assert(fd != NULL);
+
+    size_t midx = 0;
+    uint8_t buf[16];
+    size_t nread;
+    while ((nread = fread(buf, 1, 16, fd))) {
+        memcpy(memory + midx, buf, nread);
+        midx += nread;
+    }
+
+    fclose(fd);
+}
+
 static rv_exception_t rv_DecodeAndExecute(void) {
     word_t result, op1, op2;
     rv_exception_t exception;
@@ -215,15 +253,15 @@ static rv_exception_t rv_DecodeAndExecute(void) {
             op2 = rv_GetRegVal(FIELD_RS2(instruction));
             
             switch (FIELD_FUNCT3_OP(instruction)) {
-                case FUNCT3_OP_ADD: result.s = (SPECIAL_OP(instruction)) ? (op1.s - op2.s) : (op1.s + op2.s); break;
-                case FUNCT3_OP_SLL: result.u = op1.u << op2.u; break;
-                case FUNCT3_OP_SLT: result.u = (op1.s < op2.s); break;
+                case FUNCT3_OP_ADD:  result.s = (SPECIAL_OP(instruction)) ? (op1.s - op2.s) : (op1.s + op2.s); break;
+                case FUNCT3_OP_SLL:  result.u = op1.u << op2.u; break;
+                case FUNCT3_OP_SLT:  result.u = (op1.s < op2.s); break;
                 case FUNCT3_OP_SLTU: result.u = (op1.u < op2.u); break;
-                case FUNCT3_OP_XOR: result.u = op1.u ^ op2.u; break;
-                case FUNCT3_OP_SRx: result.u = (SPECIAL_OP(instruction)) ? (op1.s >> op2.u) : (op1.u >> op2.u); break;
-                case FUNCT3_OP_OR: result.u = op1.u | op2.u; break;
-                case FUNCT3_OP_AND: result.u = op1.u & op2.u; break;
-                default: break;
+                case FUNCT3_OP_XOR:  result.u = op1.u ^ op2.u; break;
+                case FUNCT3_OP_SRx:  result.u = (SPECIAL_OP(instruction)) ? (op1.s >> op2.u) : (op1.u >> op2.u); break;
+                case FUNCT3_OP_OR:   result.u = op1.u | op2.u; break;
+                case FUNCT3_OP_AND:  result.u = op1.u & op2.u; break;
+                default: assert(0); break;
             }
 
             rv_SetRegVal(FIELD_RD(instruction), result);
@@ -236,32 +274,32 @@ static rv_exception_t rv_DecodeAndExecute(void) {
             op2 = IMMEDIATE_I(instruction);
             
             switch (FIELD_FUNCT3_OP(instruction)) {
-                case FUNCT3_OP_ADD: result.s = op1.s + op2.s; break;
-                case FUNCT3_OP_SLL: result.u = op1.u << op2.u; break;
-                case FUNCT3_OP_SLT: result.u = (op1.s < op2.s); break;
+                case FUNCT3_OP_ADD:  result.s = op1.s + op2.s; break;
+                case FUNCT3_OP_SLL:  result.u = op1.u << op2.u; break;
+                case FUNCT3_OP_SLT:  result.u = (op1.s < op2.s); break;
                 case FUNCT3_OP_SLTU: result.u = (op1.u < op2.u); break;
-                case FUNCT3_OP_XOR: result.u = op1.u ^ op2.u; break;
-                case FUNCT3_OP_SRx: result.u = (SPECIAL_OP(instruction)) ? (op1.s >> op2.u) : (op1.u >> op2.u); break;
-                case FUNCT3_OP_OR: result.u = op1.u | op2.u; break;
-                case FUNCT3_OP_AND: result.u = op1.u & op2.u; break;
-                default: break;
+                case FUNCT3_OP_XOR:  result.u = op1.u ^ op2.u; break;
+                case FUNCT3_OP_SRx:  result.u = (SPECIAL_OP(instruction)) ? (op1.s >> op2.u) : (op1.u >> op2.u); break;
+                case FUNCT3_OP_OR:   result.u = op1.u | op2.u; break;
+                case FUNCT3_OP_AND:  result.u = op1.u & op2.u; break;
+                default: assert(0); break;
             }
 
             rv_SetRegVal(FIELD_RD(instruction), result);
 
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_LUI:
             /* rd <= immU */
             rv_SetRegVal(FIELD_RD(instruction), IMMEDIATE_U(instruction));
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_AUIPC:
             /* rd <= pc + immU */
             rv_SetRegVal(FIELD_RD(instruction), (word_t)(pc.u + IMMEDIATE_U(instruction).u));
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_JAL:
@@ -284,22 +322,22 @@ static rv_exception_t rv_DecodeAndExecute(void) {
             op2 = rv_GetRegVal(FIELD_RS2(instruction));
 
             switch (FIELD_FUNCT3_BRANCH(instruction)) {
-                case FUNCT3_BEQ: branch_taken = (op1.s == op2.s); rv_Log("BEQ | "); break;
-                case FUNCT3_BNE: branch_taken = (op1.s != op2.s); rv_Log("BNE | "); break;
-                case FUNCT3_BLT: branch_taken = (op1.s < op2.s); rv_Log("BLT | "); break;
-                case FUNCT3_BGE: branch_taken = (op1.s >= op2.s); break;
-                case FUNCT3_BLTU: branch_taken = (op1.u < op2.u); break;
-                case FUNCT3_BGEU: branch_taken = (op1.u >= op2.u); break;
-                default: break;
+                case FUNCT3_BEQ:  branch_taken = (op1.s == op2.s); rv_Log("BEQ | "); break;
+                case FUNCT3_BNE:  branch_taken = (op1.s != op2.s); rv_Log("BNE | "); break;
+                case FUNCT3_BLT:  branch_taken = (op1.s < op2.s);  rv_Log("BLT | "); break;
+                case FUNCT3_BGE:  branch_taken = (op1.s >= op2.s); rv_Log("BGE | "); break;
+                case FUNCT3_BLTU: branch_taken = (op1.u < op2.u);  rv_Log("BLTU | "); break;
+                case FUNCT3_BGEU: branch_taken = (op1.u >= op2.u); rv_Log("BGEU | "); break;
+                default: assert(0); break;
             }
             
             if (branch_taken) {
-                rv_Log("Branch was taken with immediate %d | ", IMMEDIATE_B(instruction).s);
+                rv_Log("Taken with immediate %d | ", IMMEDIATE_B(instruction).s);
                 pc.s = pc.s + IMMEDIATE_B(instruction).s;
             }
             else {
-                rv_Log("Branch not taken | ");
-                pc.u += 4U;
+                rv_Log("Not taken | ");
+                pc.u += 4;
             }
             break;
 
@@ -312,7 +350,7 @@ static rv_exception_t rv_DecodeAndExecute(void) {
                 return exception;
             }
             rv_SetRegVal(FIELD_RD(instruction), loaded);
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_STORE:
@@ -325,17 +363,17 @@ static rv_exception_t rv_DecodeAndExecute(void) {
             if (exception != RV_EXCEPTION_NONE) {
                 return exception;
             }
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_MISC_MEM:
             /* Fence is a nop */
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         case OPCODE_SYSTEM:
             /* System instructions are a nop */
-            pc.u += 4U;
+            pc.u += 4;
             break;
 
         default:
@@ -403,6 +441,7 @@ static rv_exception_t rv_Load(uint32_t addr, rv_funct3_load_t funct3) {
                     loaded.s = (int32_t)(*(uint8_t *)&memory[addr]);
                     break;
                 default:
+                    assert(0);
                     break;
             }
             break;
@@ -461,18 +500,14 @@ static rv_exception_t rv_Store(uint32_t addr, rv_funct3_store_t funct3, word_t w
 }
 
 static word_t rv_GetRegVal(reg_sel_t reg_sel) {
-    word_t reg_val = (word_t)0;
-
-    if (reg_sel != 0) {
-        reg_val = rf[reg_sel + 1];
-    }
-
-    return reg_val;
+    assert(reg_sel <= 32);
+    return (reg_sel) ? rf[reg_sel + 1] : (word_t)0;
 }
 
 static void rv_SetRegVal(reg_sel_t reg_sel, word_t write_data) {
-    if (reg_sel != 0U) {
-        rf[reg_sel + 1U] = write_data;
+    assert(reg_sel <= 32);
+    if (reg_sel) {
+        rf[reg_sel + 1] = write_data;
     }
 }
 
@@ -480,18 +515,24 @@ static void rv_SetRegVal(reg_sel_t reg_sel, word_t write_data) {
  * Public Function Definitions
  * ------------------------------------------------------------------------- */
 
-void rv_RunEmulator(void) {
+void BRV1E_Run(const char *mem_image) {
+    logfile = fopen("rv_log.txt", "w");
+    fclose(logfile);
+
     /* Initialize UART */
     rv_InitUART();
 
     /* Allocate memory for RAM */
-    memory = malloc(RAM_SIZE * sizeof(uint8_t));
+    memory = malloc(RAM_SIZE);
+    assert(memory != NULL);
+
+    rv_LoadProgram(mem_image);
 
     /* Initialize the PC */
     pc.u = PC_START_ADDRESS;
 
     /* Reset the instruction count */
-    inst_cnt = 0U;
+    inst_cnt = 0;
 
     rv_Log("Emulator started\n");
 
@@ -500,10 +541,10 @@ void rv_RunEmulator(void) {
 
     rv_Log("Exiting emulator\n");
 
-    /* Deallocate RAM memory */
+    /* Free RAM memory */
     free(memory);
     memory = NULL;
 
     /* Un-initialize the UART */
-    rv_UninitUART();
+    // rv_UninitUART();
 }

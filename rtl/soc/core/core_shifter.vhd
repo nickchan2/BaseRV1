@@ -36,32 +36,35 @@ architecture arch of core_shifter is
   
 begin
   
-  ext_bit <= shft_di(BITS - 1) AND shft_arth_en;
+  -- The bit that will be shifted in is 0 when a logical shift or the MSB of
+  -- the data input when an arithmetic right shift
+  ext_bit <= shft_di(BITS - 1) AND shft_arth_en AND shft_dir;
   
-  -- Reverse input to shift in other direction
+  -- Reverse input if shifting in other direction
   initial_reverse: for ii in 0 to BITS - 1 generate
-    with shft_dir select
-      shift_layers(0)(ii) <=  shft_di(ii)             when '0',
-                              shft_di(BITS - 1 - ii)  when others;
+    with shft_dir select shift_layers(0)(ii) <=
+      shft_di(ii)             when '0',
+      shft_di(BITS - 1 - ii)  when others;
   end generate initial_reverse;
   
   gen_layers: for ii in 1 to SEL generate
     gen_top: for jj in BITS - 1 downto 2**(ii - 1) generate
-      with shft_amt(ii - 1) select
-        shift_layers(ii)(jj) <= shift_layers(ii - 1)(jj) when '0',
-                                shift_layers(ii - 1)(jj - (2 ** (ii - 1))) when others;
+      with shft_amt(ii - 1) select shift_layers(ii)(jj) <=
+        shift_layers(ii - 1)(jj)                    when '0',
+        shift_layers(ii - 1)(jj - (2 ** (ii - 1)))  when others;
     end generate;
     gen_bottom: for jj in 2**(ii-1) - 1 downto 0 generate
-      with shft_amt(ii - 1) select
-        shift_layers(ii)(jj) <= shift_layers(ii - 1)(jj) when '0',
-                                ext_bit when others;
+      with shft_amt(ii - 1) select shift_layers(ii)(jj) <=
+        shift_layers(ii - 1)(jj)  when '0',
+        ext_bit                   when others;
     end generate;
   end generate gen_layers;
   
+  -- If data was reversed before shifting, reverse it back
   final_reverse: for ii in 0 to BITS - 1 generate
-    with shft_dir select
-      shft_do(ii) <=  shift_layers(SEL)(ii)             when '0',
-                      shift_layers(SEL)(BITS - 1 - ii)  when others;
+    with shft_dir select shft_do(ii) <=
+      shift_layers(SEL)(ii)             when '0',
+      shift_layers(SEL)(BITS - 1 - ii)  when others;
   end generate final_reverse;
 
 end arch;

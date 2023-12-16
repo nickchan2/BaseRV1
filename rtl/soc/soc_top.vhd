@@ -8,6 +8,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.soc_package.all;
 
 entity soc_top is
   generic (
@@ -23,50 +24,54 @@ entity soc_top is
     uart_tx         : out std_logic;
 
     -- GPIO
-    gpio_in         : in  std_logic_vector(31 downto 0);
-    gpio_out        : out std_logic_vector(31 downto 0);
+    gpio_in         : in  word_t;
+    gpio_out        : out word_t;
 
     -- Debug
-    dbg_rs3_sel     : in std_logic_vector(4 downto 0);
-    dbg_rs3_val     : out std_logic_vector(31 downto 0);
-    dbg_curr_instr  : out std_logic_vector(31 downto 0);
-    dbg_imm         : out std_logic_vector(31 downto 0);
-    dbg_curr_pc     : out std_logic_vector(31 downto 0);
-    dbg_alu_result  : out std_logic_vector(31 downto 0);
-    dbg_ctrl_sigs   : out std_logic_vector(31 downto 0)
+    dbg_rs3_sel     : in  rf_sel_t;
+    dbg_rs3_val     : out word_t;
+    dbg_curr_instr  : out word_t;
+    dbg_imm         : out word_t;
+    dbg_curr_pc     : out word_t;
+    dbg_alu_result  : out word_t;
+    dbg_ctrl_sigs   : out word_t
   );
 end soc_top;
 
 architecture arch of soc_top is
 
-  ---------- Constants ----------
+  -----------------------------------------------------------------------------
+  -- Constants
+  -----------------------------------------------------------------------------
 
   constant UART_BAUD_RATE : integer := 9600;
   constant RAM_ADDR_BITS  : integer := 10;
 
-  ---------- Signals ----------
+  -----------------------------------------------------------------------------
+  -- Signals
+  -----------------------------------------------------------------------------
 
   signal dmem_en          : std_logic;
-  signal dmem_addr        : std_logic_vector(31 downto 0);
+  signal dmem_addr        : word_t;
   signal dmem_dtype       : std_logic_vector(2 downto 0);
-  signal dmem_wd          : std_logic_vector(31 downto 0);
+  signal dmem_wd          : word_t;
   signal dmem_we          : std_logic;
-  signal dmem_do          : std_logic_vector(31 downto 0);
-  signal imem_addr        : std_logic_vector(31 downto 0);
-  signal imem_do          : std_logic_vector(31 downto 0);
+  signal dmem_do          : word_t;
+  signal imem_addr        : word_t;
+  signal imem_do          : word_t;
 
   signal ram_port1_addr   : std_logic_vector((RAM_ADDR_BITS - 1) downto 0);
   signal ram_port1_dtype  : std_logic_vector(2 downto 0);
-  signal ram_port1_wd     : std_logic_vector(31 downto 0);
+  signal ram_port1_wd     : word_t;
   signal ram_port1_we     : std_logic;
-  signal ram_port1_do     : std_logic_vector(31 downto 0);
+  signal ram_port1_do     : word_t;
   signal ram_port2_addr   : std_logic_vector((RAM_ADDR_BITS - 1) downto 0);
-  signal ram_port2_do     : std_logic_vector(31 downto 0);
+  signal ram_port2_do     : word_t;
   
   signal boot_rom_addr    : std_logic_vector(4 downto 0);
-  signal boot_rom_do      : std_logic_vector(31 downto 0);
+  signal boot_rom_do      : word_t;
   
-  signal timer_val        : std_logic_vector(31 downto 0);
+  signal timer_val        : word_t;
 
   signal uart_addr        : std_logic_vector(1 downto 0);
   signal uart_en          : std_logic;

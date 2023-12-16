@@ -1,4 +1,4 @@
-# Softcore RISC V CPU
+# BaseRV1
 
 Overview
 --------

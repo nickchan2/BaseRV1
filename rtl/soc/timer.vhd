@@ -9,12 +9,13 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.soc_package.all;
 
 entity timer is
   port (
-    clk       : in std_logic;
-    rst_n     : in std_logic;
-    timer_val : out std_logic_vector(31 downto 0)
+    clk       : in  std_logic;
+    rst_n     : in  std_logic;
+    timer_val : out word_t
   );
 end timer;
 

@@ -10,8 +10,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 package core_package is
-
+  
+  -- In RISC-V, a word is 32 bits
   subtype word_t is std_logic_vector(31 downto 0);
+  
+  type word_array_t is array(natural range <>) of word_t;
 
   -- Register file select
   subtype rf_sel_t is std_logic_vector(4 downto 0);
@@ -34,5 +37,12 @@ package core_package is
     dmem_we           : std_logic;                    -- Data memory write enable
     dmem_dtype        : std_logic_vector(2 downto 0); -- Data memory data type
   end record;
+
+  -- Instruction opcodes
+
+  -- Memory regions
+  constant MREGION_BOOT_ROM : word_t := x"10000000";
+  constant MREGION_TIMER    : word_t := x"20000000";
+  constant MREGION_UART     : word_t := x"30000000";
 
 end core_package;
